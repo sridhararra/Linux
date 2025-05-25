@@ -1,0 +1,162 @@
+>>>>>
+
+A modern CPU has several levels of privilege at which code is executed
+Minimally, two levels of privilege
+◦ privileged mode : the kernel / OS + most drivers
+◦ unprivileged mode : apps (user processes/threads)
+
+If not, a user app can do this:
+__asm__(“HLT”); // <--- DoS attack !
+
+
+When we run above code,it causes SIGSEGV
+
+
+>>>>>
+
+
+sridhar@sridhar:~/Linux/L1_syspgm/ch2$ gdb ./mem_app1buggy_dbg 1
+GNU gdb (Ubuntu 15.0.50.20240403-0ubuntu1) 15.0.50.20240403-git
+Copyright (C) 2024 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+Reading symbols from ./mem_app1buggy_dbg...
+Attaching to program: /home/sridhar/Linux/L1_syspgm/ch2/mem_app1buggy_dbg, process 1
+Could not attach to process.  If your uid matches the uid of the target
+process, check the setting of /proc/sys/kernel/yama/ptrace_scope, or try
+again as the root user.  For more details, see /etc/sysctl.d/10-ptrace.conf
+ptrace: Operation not permitted.
+/home/sridhar/Linux/L1_syspgm/ch2/1: No such file or directory.
+(gdb) b main
+Breakpoint 1 at 0x137c: file mem_app1buggy.c, line 7.
+(gdb) r
+Starting program: /home/sridhar/Linux/L1_syspgm/ch2/mem_app1buggy_dbg 
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.ubuntu.com>
+Enable debuginfod for this session? (y or [n]) y
+Debuginfod has been enabled.
+To make this setting permanent, add 'set debuginfod enabled on' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Breakpoint 1, main (argc=1, argv=0x7fffffffdd98) at mem_app1buggy.c:7
+7		void *ptr = NULL;
+(gdb) n
+8		void *dest, *src = "abcdefghij";
+(gdb) n
+9	void *adbit = (void *)0xffffffffff60100;
+(gdb) n
+10		int n = strlen(src);
+(gdb) n
+12		ptr = malloc(100);
+(gdb) n
+14		if (!ptr) {
+(gdb) p argc
+$1 = 1
+(gdb) q
+A debugging session is active.
+
+	Inferior 1 [process 21424] will be killed.
+
+Quit anyway? (y or n) n
+Not confirmed.
+(gdb) r 1
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+Starting program: /home/sridhar/Linux/L1_syspgm/ch2/mem_app1buggy_dbg 1
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Breakpoint 1, main (argc=2, argv=0x7fffffffdd98) at mem_app1buggy.c:7
+7		void *ptr = NULL;
+(gdb) p argc
+$2 = 2
+(gdb) n
+8		void *dest, *src = "abcdefghij";
+(gdb) n
+9	void *adbit = (void *)0xffffffffff60100;
+(gdb) n
+10		int n = strlen(src);
+(gdb) n
+12		ptr = malloc(100);
+(gdb) n
+14		if (!ptr) {
+(gdb) n
+19		if (argc == 1)
+(gdb) n
+22			dest = adbit;
+(gdb) n
+24		memcpy(dest, src, n);
+(gdb) p dest
+$3 = (void *) 0xffffffffff60100
+(gdb) p (char *)dest
+$4 = 0xffffffffff60100 <error: Cannot access memory at address 0xffffffffff60100>
+(gdb) info proc mappings
+process 21435
+Mapped address spaces:
+
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x555555554000     0x555555555000     0x1000        0x0  r--p   /home/sridhar/Linux/L1_syspgm/ch2/mem_app1buggy_dbg
+      0x555555555000     0x555555556000     0x1000     0x1000  r-xp   /home/sridhar/Linux/L1_syspgm/ch2/mem_app1buggy_dbg
+      0x555555556000     0x555555557000     0x1000     0x2000  r--p   /home/sridhar/Linux/L1_syspgm/ch2/mem_app1buggy_dbg
+      0x555555557000     0x555555558000     0x1000     0x2000  r--p   /home/sridhar/Linux/L1_syspgm/ch2/mem_app1buggy_dbg
+      0x555555558000     0x555555559000     0x1000     0x3000  rw-p   /home/sridhar/Linux/L1_syspgm/ch2/mem_app1buggy_dbg
+      0x555555559000     0x55555557a000    0x21000        0x0  rw-p   [heap]
+      0x7ffff7c00000     0x7ffff7c28000    0x28000        0x0  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7c28000     0x7ffff7db0000   0x188000    0x28000  r-xp   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7db0000     0x7ffff7dff000    0x4f000   0x1b0000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7dff000     0x7ffff7e03000     0x4000   0x1fe000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e03000     0x7ffff7e05000     0x2000   0x202000  rw-p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e05000     0x7ffff7e12000     0xd000        0x0  rw-p   
+      0x7ffff7fa7000     0x7ffff7faa000     0x3000        0x0  rw-p   
+      0x7ffff7fbd000     0x7ffff7fbf000     0x2000        0x0  rw-p   
+      0x7ffff7fbf000     0x7ffff7fc3000     0x4000        0x0  r--p   [vvar]
+      0x7ffff7fc3000     0x7ffff7fc5000     0x2000        0x0  r-xp   [vdso]
+      0x7ffff7fc5000     0x7ffff7fc6000     0x1000        0x0  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7fc6000     0x7ffff7ff1000    0x2b000     0x1000  r-xp   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ff1000     0x7ffff7ffb000     0xa000    0x2c000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffb000     0x7ffff7ffd000     0x2000    0x36000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffd000     0x7ffff7fff000     0x2000    0x38000  rw-p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffffffde000     0x7ffffffff000    0x21000        0x0  rw-p   [stack]
+  0xffffffffff600000 0xffffffffff601000     0x1000        0x0  --xp   [vsyscall]
+(gdb)  
+
+>>>>>>>>>>>>>>
+
+ANSWER
+
+Think about what has happened here in a bit more detail: the destination pointer's
+value is 0xffffffffff601000; on the x86_64 processor, this is actually a kernel
+virtual address. Now we, a user mode process, are trying to write some memory to
+this destination region, which is protected against access from userspace. Technically,
+it's in the kernel virtual address space, which is not available to user mode processes
+(recall our discussion of CPU privilege levels in Chapter 1, Linux System Architecture).
+So when we – a user mode process – attempt to write to kernel virtual address space,
+the protection mechanism spins up and prevents us from doing this, killing us in the
+bargain.
+Advanced: How does the system know that this region is protected and what kind of
+protection it has? These details are encoded into the Paging Table Entry (PTEs) for
+the process, and are checked by the MMU on every access!
+This kind of advanced memory protection would be impossible without support in
+both hardware and software:
+Hardware support via the MMU found in all modern microprocessors
+Software support via the operating system
+There are many more benefits that VM provides, including (but not limited to)
+making powerful technologies, such as demand paging, copy-on-write (COW)
+handling, defragmentation, memory overcommit, memory-compaction, Kernel
+Samepage Merging (KSM), and Transcendent Memory (TM), possible. Within this
+book's scope, we will cover a couple of these at later points.
+
+
